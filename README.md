@@ -16,10 +16,13 @@ gem "lita-rally"
 ## Configuration
 
 **Required:**
+
 ```config.handlers.rally.username``` - Rally username
+
 ```config.handlers.rally.password``` - Rally password
 
 **Optional:**
+
 ```config.handlers.rally.api_version``` - API version, default 'v2.0'
 
 
