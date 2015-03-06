@@ -1,7 +1,7 @@
 # lita-rally
 
 A port of
-[Hubot-Rally](https://github.com/github/hubot-scripts/blob/master/src/scripts/rally.coffee])
+[Hubot-Rally](https://github.com/github/hubot-scripts/blob/master/src/scripts/rally.coffee)
 with some enhancements. 
 
 ## Installation
