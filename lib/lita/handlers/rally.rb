@@ -64,6 +64,7 @@ module Lita
           link_path: 'userstory',
           extra_output: [
             'ScheduleState',
+            ['Release', '_refObjectName'],
             ['Parent', '_refObjectName'],
             ['Feature', '_refObjectName'],
           ]
