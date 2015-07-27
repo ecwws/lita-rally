@@ -193,14 +193,17 @@ module Lita
             )
           else
             out = result[0].read
-            output = "#{link_to_item(out, @@key_map[type][:link_path])}\n" \
-                     "Owner: #{out['Owner']['_refObjectName']}\n" \
-                     "Project: #{out['Project']['_refObjectName']}\n"
+            output =
+              "#{link_to_item(out, @@key_map[type][:link_path])}\n" \
+              "Owner: #{out['Owner']['_refObjectName'] rescue 'none'}\n" \
+              "Project: #{out['Project']['_refObjectName']}\n"
             @@key_map[type][:extra_output].each do |field|
-              output += "#{field}: #{out[field]}\n" if
-                field.is_a?(String) && out[field]
-              output += "#{field[0]}: #{out[field[0]][field[1]]}\n" if
-                field.is_a?(Array) && out[field[0]]
+              if field.is_a?(String)
+                output += "#{field}: #{out[field] rescue 'none'}\n"
+              elsif field.is_a?(Array)
+                output +=
+                  "#{field[0]}: #{out[field[0]][field[1]] rescue 'none'}\n"
+              end
             end
             output += "Description: #{strip_html(out['Description'])}\n"
           end
