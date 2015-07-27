@@ -1,9 +1,13 @@
 require 'rest-client'
 require 'json'
+require 'rally_api'
 
 module Lita
   module Handlers
     class Rally < Handler
+
+      RALLY = "https://rally1.rallydev.com/slm/webservice"
+
       @@key_map = {
         'de' => {
           name: 'defect',
@@ -71,9 +75,9 @@ module Lita
         }
       }
 
-      config :username
-      config :password
-      config :api_version
+      config :username, type: String, required: true
+      config :password, type: String, required: true
+      config :api_version, type: String, default: 'v2.0'
 
       route(/^rally me ([[:alpha:]]+)(\d+)/, :rally_show, command: true, help: {
         'rally me <identifier>' => 'Show me that rally object'
@@ -90,153 +94,122 @@ module Lita
       })
 
       def rally_show(response)
-        if config_validate
-          get_rally_object(response)
-        else
-          response.reply('Configuration failed to validate, '\
-                         'check your config')
-        end
+        type = response.matches[0][0].downcase
+        id = response.matches[0][1]
+
+        response.reply(get_rally_object(type, id))
       end
 
       def rally_release_stats(response)
-        if config_validate
-          get_rally_release_stat(response)
-        else
-          response.reply('Configuration failed to validate, '\
-                         'check your config')
-        end
+        release = response.matches[0][0]
+        response.reply(get_rally_release_stat(release))
       end
 
       def rally_release_info(response)
-        if config_validate
-          get_rally_release_info(response)
-        else
-          response.reply('Configuration failed to validate, '\
-                         'check your config')
-        end
+        release = response.matches[0][0]
+        response.reply(get_rally_release_info(release))
       end
 
       private
 
-      def config_validate
-        (config.username && config.password) ? true : false
-      end
-
-      def get_rest
-        api_version = config.api_version ? config.api_version : 'v2.0'
-        RestClient::Resource.new(
-          "https://rally1.rallydev.com/slm/webservice/#{api_version}/",
-          user: config.username,
+      def get_rally_api
+        rally_api_config = {
+          base_url: 'https://rally1.rallydev.com/slm',
+          username: config.username,
           password: config.password,
-        )
+          version: config.api_version
+        }
+
+        RallyAPI::RallyRestJson.new(rally_api_config)
       end
 
-      def validate_release(rest, release)
-        query = "(Name = \"#{release}\")"
-        JSON.parse(
-          rest['release'].get(params: {query: query})
-        )['QueryResult']['TotalResultCount'] == 0
+      def validate_release(rally, release)
+        query = RallyAPI::RallyQuery.new()
+        query.type = 'release'
+        query.query_string = "(Name = \"#{release}\")"
+
+        rally.find(query).count > 0
       end
 
-      def get_rally_release_info(response)
-        rest = get_rest
-        release = response.matches[0][0]
-        if validate_release(rest, release)
-          response.reply("I can find anything about release: '#{release}'!")
+      def get_rally_release_info(release)
+        rally = get_rally_api
+        if validate_release(rally, release)
+          query = RallyAPI::RallyQuery.new()
+          query.type = 'defect'
+          query.query_string = "(Release.Name = \"#{release}\")"
+
+          defects = rally.find(query).map {|r| r.read['FormattedID']}.join(' ')
+
+          query = RallyAPI::RallyQuery.new()
+          query.type = 'story'
+          query.query_string = "(Release.Name = \"#{release}\")"
+          us = rally.find(query).map {|r| r.read['FormattedID']}.join(' ')
+
+          "Release info for: #{release}\n" \
+          "Defects: #{defects}\n" \
+          "User Stories: #{us}\n"
         else
-          query = "(Release.Name = \"#{release}\")"
-          defects = JSON.parse(
-            rest['defect'].get(
-              params: {
-                query: query,
-                fetch: 'true',
-                pagesize: '200',
-              }
-            )
-          )['QueryResult']['Results'].map {|r| r['FormattedID']}.join(' ')
-
-          us = JSON.parse(
-            rest['hierarchicalrequirement'].get(
-              params: {
-                query: query,
-                fetch: 'true',
-                pagesize: '200',
-              }
-            )
-          )['QueryResult']['Results'].map {|r| r['FormattedID']}.join(' ')
-
-          output = "Release info for: #{release}\n" \
-                   "Defects: #{defects}\n" \
-                   "User Stories: #{us}\n"
-          response.reply(output)
+          "I can't find anything about release: '#{release}'!"
         end
       end
 
-      def get_rally_release_stat(response)
-        rest = get_rest
-        release = response.matches[0][0]
-        if validate_release(rest, release)
-          response.reply("I can find anything about release: '#{release}'!")
+      def get_rally_release_stat(release)
+        rally = get_rally_api
+        if validate_release(rally, release)
+          query = RallyAPI::RallyQuery.new()
+          query.type = 'defect'
+          query.query_string = "(Release.Name = \"#{release}\")"
+
+          de_count = rally.find(query).count
+
+          query = RallyAPI::RallyQuery.new()
+          query.type = 'story'
+          query.query_string = "(Release.Name = \"#{release}\")"
+
+          us_count = rally.find(query).count
+
+          "Release stats for: #{release}\n" \
+          "Defects count: #{de_count}\n" \
+          "User Story count: #{us_count}\n"
         else
-          query = "(Release.Name = \"#{release}\")"
-          de_result = JSON.parse(
-            rest['defect'].get(params: {query: query})
-          )['QueryResult']
-          de_count = de_result['TotalResultCount']
-
-          us_result = JSON.parse(
-            rest['hierarchicalrequirement'].get(params: {query: query})
-          )['QueryResult']
-          us_count = us_result['TotalResultCount']
-
-          output = "Release stats for: #{release}\n" \
-                   "Defects count: #{de_count}\n" \
-                   "User Story count: #{us_count}\n"
-          response.reply(output)
+          "I can find anything about release: '#{release}'!"
         end
       end
 
-      def get_rally_object(response)
-        rest = get_rest
-        type = response.matches[0][0].downcase
-        id = response.matches[0][1]
+      def get_rally_object(type, id)
+        rally = get_rally_api
+
         if @@key_map[type]
-          query_path = (@@key_map[type][:query_path] || @@key_map[type][:name])
-          link_path = (@@key_map[type][:link_path] || query_path)
-          query_result = JSON.parse(
-            rest[query_path].get(
-              params: {
-                query: "(FormattedId = #{id})",
-                fetch: 'true'
-              }
+          query = RallyAPI::RallyQuery.new()
+          query.type = @@key_map[type][:name]
+          query.query_string = "(FormattedID = \"#{type}#{id}\")"
+
+          result = rally.find(query)
+
+          if result.count < 1
+            response.reply(
+              "Can't find your so called #{@@key_map[type][:name]} " \
+              "#{type}#{id}"
             )
-          )['QueryResult']
-          if query_result['TotalResultCount'] == 0
-            response.reply("Can't find your so called #{type}#{id} in Rally!")
           else
-            result = query_result['Results'][0]
-            link = link_to_item(result, link_path)
-            output = ''
-            output += link + "\n" if link
-            output += "#{result['FormattedID']} - #{result['Name']}\n" \
-                      "Owner: #{result['Owner']['_refObjectName']}\n" \
-                      "Project: #{result['Project']['_refObjectName']}\n"
+            out = result[0].read
+            output = "#{link_to_item(out, @@key_map[type][:link_path])}\n" \
+                     "Owner: #{out['Owner']['_refObjectName']}\n" \
+                     "Project: #{out['Project']['_refObjectName']}\n"
             @@key_map[type][:extra_output].each do |field|
-              output += "#{field}: #{result[field]}\n" if
-                field.is_a?(String) && result[field]
-              output += "#{field[0]}: #{result[field[0]][field[1]]}\n" if
-                field.is_a?(Array) && result[field[0]]
+              output += "#{field}: #{out[field]}\n" if
+                field.is_a?(String) && out[field]
+              output += "#{field[0]}: #{out[field[0]][field[1]]}\n" if
+                field.is_a?(Array) && out[field[0]]
             end
-            output += "Description: #{strip_html(result['Description'])}\n"
-            response.reply(output)
+            output += "Description: #{strip_html(out['Description'])}\n"
           end
         else
-          response.reply("I don't know the type #{type}")
+          "I don't know the type #{type}"
         end
       end
 
       def link_to_item(result, type)
-        return false unless result['Project'] && result['ObjectID']
         project_id = result['Project']['_ref'].split('/')[-1]
         object_id = result['ObjectID']
         "https://rally1.rallydev.com/#/#{project_id}/detail/#{type}/#{object_id}"
