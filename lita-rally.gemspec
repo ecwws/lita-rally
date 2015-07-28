@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = 'lita-rally'
-  spec.version       = '0.3.0'
+  spec.version       = '0.3.2'
   spec.authors       = ['Richard Li']
   spec.email         = ['evilcat@wisewolfsolutions.com']
   spec.description   = %q{Rally plugin for lita bot}
@@ -15,8 +15,8 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_runtime_dependency 'lita', '~> 4.1'
-  spec.add_runtime_dependency 'rest-client', '~> 0'
-  spec.add_runtime_dependency 'json', '~> 0'
+  spec.add_runtime_dependency 'rest-client', '>= 0'
+  spec.add_runtime_dependency 'json', '>= 0'
   spec.add_runtime_dependency 'rally_api', '~> 1.1', '>= 1.1.2'
 
   spec.add_development_dependency 'bundler', '~> 1.3'

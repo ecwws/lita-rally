@@ -208,6 +208,7 @@ module Lita
             out = result[0].read
             output =
               "#{link_to_item(out, @@key_map[type][:link_path])}\n" \
+              "Name: #{out['Name'] rescue 'none'}\n" \
               "Owner: #{out['Owner']['_refObjectName'] rescue 'none'}\n" \
               "Project: #{out['Project']['_refObjectName']}\n"
             @@key_map[type][:extra_output].each do |field|
