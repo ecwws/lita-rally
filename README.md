@@ -43,6 +43,12 @@ lita rally me release info for <release_name>
 ```
 Show object IDs (defects, user story, etc.) for release <release_name>.
 
+```
+lita rally find <defect|defects|story|stories> <contain|contains> "<search
+term>" in <name|description>
+```
+Find object with terms
+
 ## License
 
 [MIT](http://opensource.org/licenses/MIT)
