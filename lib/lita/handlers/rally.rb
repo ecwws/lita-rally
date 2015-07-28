@@ -93,6 +93,12 @@ module Lita
         'rally me release info for <release>' => 'Show release info'
       })
 
+      route(/^rally find (defect|defects|story|stories) (contain|contains) "(.+)" in (name|description)$/,
+            :rally_find, command: true, help: {
+        'rally find <defect|story> contains "<search term>" ' \
+        'in <name|description>' => 'Find the story or defect'
+      })
+
       def rally_show(response)
         type = response.matches[0][0].downcase
         id = response.matches[0][1]
@@ -108,6 +114,13 @@ module Lita
       def rally_release_info(response)
         release = response.matches[0][0]
         response.reply(get_rally_release_info(release))
+      end
+
+      def rally_find(response)
+        type = response.matches[0][0]
+        term = response.matches[0][2]
+        field = response.matches[0][3]
+        response.reply(rally_search(type, term, field))
       end
 
       private
@@ -227,6 +240,32 @@ module Lita
         ).gsub('</div>', "\n"
         ).gsub(/<style.+\/style>/, ''
         )
+      end
+
+      def rally_search(type, term, field)
+        rally = get_rally_api
+
+        query = RallyAPI::RallyQuery.new()
+        if %w{defect defects}.include?(type)
+          query.type = 'defect'
+        else
+          query.type = 'story'
+        end
+
+        if field == 'name'
+          query.query_string = "(Name contains \"#{term}\")"
+        else
+          query.query_string = "(Description contains \"#{term}\")"
+        end
+
+        result = rally.find(query)
+
+        return "No result found!" if result.count == 0
+
+        result.inject("#{result.count} results total:\n") do |o,r|
+          r.read
+          o += "#{r['FormattedID']} - #{r['Name']}\n"
+        end
       end
 
     end
