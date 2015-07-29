@@ -207,7 +207,7 @@ module Lita
           else
             out = result[0].read
             output =
-              "#{link_to_item(out, @@key_map[type][:link_path])}\n" \
+              "#{link_to_item(out, type)}\n" \
               "#{out['FormattedID']} - #{out['Name'] rescue 'none'}\n" \
               "Owner: #{out['Owner']['_refObjectName'] rescue 'none'}\n" \
               "Project: #{out['Project']['_refObjectName']}\n"
@@ -229,7 +229,8 @@ module Lita
       def link_to_item(result, type)
         project_id = result['Project']['_ref'].split('/')[-1]
         object_id = result['ObjectID']
-        "https://rally1.rallydev.com/#/#{project_id}/detail/#{type}/#{object_id}"
+        type_link = @@key_map[type][:link_path] || @@key_map[type][:name]
+        "https://rally1.rallydev.com/#/#{project_id}/detail/#{type_link}/#{object_id}"
       end
 
       def strip_html(text)
