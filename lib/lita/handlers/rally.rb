@@ -99,6 +99,52 @@ module Lita
         'in <name|description>' => 'Find the story or defect'
       })
 
+      route(/^rally (start|pause|finish|accept|backlog) ([[:alpha:]]+)(\d+)/,
+        :rally_mark, command: true, help: {
+          'rally <start|pause|finish|accept|backlog> <formattedID>' =>
+          'mark issue in-progress'
+      })
+
+      def rally_mark(response)
+        action = response.matches[0][0]
+        type = response.matches[0][1].downcase
+        id = response.matches[0][2]
+
+        schedule_state =
+          case action
+          when 'start'
+            'In-Progress'
+          when 'pause'
+            'Defined'
+          when 'finish'
+            'Completed'
+          when 'accept'
+            'Accepted'
+          when 'backlog'
+            'Backlog'
+          end
+
+        state =
+          case action
+          when 'start','pause','backlog'
+            'Open'
+          when 'finish'
+            'Fixed'
+          when 'accept'
+            'Closed'
+          end
+
+        response.reply(update_object(type, id, 'ScheduleState', schedule_state))
+
+        response.reply(update_object(type, id, 'State', state))
+
+        update_object(type, id, 'Notes',
+                      "<br />Marked #{state} by #{response.user.name} on " \
+                      "#{Time.now.strftime('%Y-%m-%dT%H:%M:%S%z')}",
+                      append: true)
+
+      end
+
       def rally_show(response)
         type = response.matches[0][0].downcase
         id = response.matches[0][1]
@@ -126,6 +172,8 @@ module Lita
       private
 
       def get_rally_api
+        @rally if instance_variable_defined?('@rally')
+
         rally_api_config = {
           base_url: 'https://rally1.rallydev.com/slm',
           username: config.username,
@@ -133,7 +181,7 @@ module Lita
           version: config.api_version
         }
 
-        RallyAPI::RallyRestJson.new(rally_api_config)
+        @rally = RallyAPI::RallyRestJson.new(rally_api_config)
       end
 
       def validate_release(rally, release)
@@ -187,6 +235,42 @@ module Lita
         else
           "I can find anything about release: '#{release}'!"
         end
+      end
+
+      def update_object(type, id, attribute, value, options = {})
+        rally = get_rally_api
+        return 'Object not found' unless obj = get_by_formatted_id(type, id)
+
+        if options[:append]
+          fields = {attribute => obj.read[attribute] + value}
+        else
+          fields = {attribute => value}
+        end
+
+        updated = rally.update(@@key_map[type][:name],
+                               "FormattedID|#{type}#{id}",
+                               fields)
+        "#{attribute} of #{type.upcase}#{id} has been updated to #{value}"
+      rescue Exception => e
+        "Exception during update: #{e}"
+      end
+
+      def get_by_formatted_id(type, id)
+        rally = get_rally_api
+
+        raise 'No such object' unless @@key_map[type]
+
+        query = RallyAPI::RallyQuery.new()
+        query.type = @@key_map[type][:name]
+        query.query_string = "(FormattedID = \"#{type}#{id}\")"
+
+        result = rally.find(query)
+
+        raise 'No such object' if result.count < 1
+
+        result[0]
+      rescue
+        nil
       end
 
       def get_rally_object(type, id)

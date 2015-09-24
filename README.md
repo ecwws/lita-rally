@@ -49,6 +49,13 @@ term>" in <name|description>
 ```
 Find object with terms
 
+```
+lita rally <start|pause|finish|accept|backlog> <FormattedID>
+```
+
+Move object between schedule states: **start** -> **In-Progress**, **pause** ->
+**Defined**, **finish** -> **Completed**, **backlog** -> **Backlog**.
+
 ## License
 
 [MIT](http://opensource.org/licenses/MIT)
