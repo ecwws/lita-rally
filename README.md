@@ -24,6 +24,7 @@ gem "lita-rally"
 **Optional:**
 
 ```config.handlers.rally.api_version``` - API version, default 'v2.0'
+```config.handlers.rally.read_only``` - disable commands that modifies objects
 
 
 ## Usage
@@ -48,6 +49,24 @@ lita rally find <defect|defects|story|stories> <contain|contains> "<search
 term>" in <name|description>
 ```
 Find object with terms
+
+```
+lita rally find defects <created|closed> between <date1> and <date2>
+```
+
+Find rally defects created/closed in certain date range
+
+```
+lita rally find defects <created|closed> in last <number> days
+```
+
+Find rally defects created/closed in last few days
+
+```
+lita rally query <type> <query_string>
+```
+
+Execute raw Rally API query with <type> and <query_string>
 
 ```
 lita rally <start|pause|finish|accept|backlog> <FormattedID>

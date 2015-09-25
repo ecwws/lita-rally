@@ -78,6 +78,7 @@ module Lita
       config :username, type: String, required: true
       config :password, type: String, required: true
       config :api_version, type: String, default: 'v2.0'
+      config :read_only, type: Object, default: false
 
       route(/^rally me ([[:alpha:]]+)(\d+)/, :rally_show, command: true, help: {
         'rally me <identifier>' => 'Show me that rally object'
@@ -105,7 +106,70 @@ module Lita
           'mark issue in-progress'
       })
 
+      route(/^rally query (\w+)\s+(.*)$/,
+        :rally_query_raw, command: true, help: { 'rally query <type> <query>' =>
+          'execute raw query on rally on type of object'
+      })
+
+      route(/^rally find defect[s]{0,1} (created|closed) between (.+) and (.+)/,
+        :rally_find_defect_range, command: true, help: {
+          'rally find defect <created|closed> between <date> and <date>' =>
+            'Find defect objects in date range'
+      })
+
+      route(
+        /^rally find defect[s]{0,1} (created|closed) in last (\d+) day[s]{0,1}/,
+        :rally_find_defect_back, command: true, help: {
+          'rally find defect <created|closed> in last <number> days' =>
+            'Find defect objects in date range'
+      })
+
+      def rally_find_defect_back(response)
+        field =
+          response.matches[0][0] == 'created' ? 'CreationDate' : 'ClosedDate'
+        dt1 = (Time.now.to_date - response.matches[0][1].to_i).to_datetime
+        dt2 = Time.now.to_datetime.to_s
+
+        response.reply(rally_find_defect_by_date(field, dt1, dt2))
+      end
+
+      def rally_find_defect_range(response)
+        field =
+          response.matches[0][0] == 'created' ? 'CreationDate' : 'ClosedDate'
+        dt1 = Time.parse(response.matches[0][1]).to_datetime.to_s
+        dt2 = Time.parse(response.matches[0][2]).to_datetime.to_s
+
+        response.reply(rally_find_defect_by_date(field, dt1, dt2))
+      end
+
+      def rally_query_raw(response)
+        rally = get_rally_api
+
+        query = RallyAPI::RallyQuery.new()
+        query.type = response.matches[0][0]
+        query.query_string = response.matches[0][1]
+
+        result = rally.find(query)
+
+        if result.count < 1
+          response.reply("No object found")
+        else
+          response.reply(result.inject("") do |c,r|
+            r.read
+            "#{c}#{r['FormattedID']} - #{r['Name']}\n"
+          end)
+        end
+      rescue Exception => e
+        response.reply("Error executing query: #{e}")
+      end
+
       def rally_mark(response)
+        if config.read_only
+          response.reply('Rally plugin is operating in Read-Only mode, ' \
+                         'ask your chat-ops admin to disable it.')
+          return
+        end
+
         action = response.matches[0][0]
         type = response.matches[0][1].downcase
         id = response.matches[0][2]
@@ -235,6 +299,33 @@ module Lita
         else
           "I can find anything about release: '#{release}'!"
         end
+      end
+
+      def rally_find_defect_by_date(field, dt1, dt2)
+        rally = get_rally_api
+
+        query = RallyAPI::RallyQuery.new()
+        query.type = 'defect'
+        query.query_string =
+          "((#{field} >= \"#{dt1}\") AND "\
+          "(#{field} <= \"#{dt2}\"))"
+
+        result = rally.find(query)
+
+        if result.count < 1
+          return "No defect found"
+        else
+          m_result =
+            result.map do |r|
+              r.read
+              [r['Project'].name,r['FormattedID'], r['Name']]
+            end
+          m_result.sort_by {|r| r[0]}.inject("") do |c,r|
+            "#{c}[#{r[0]}] #{r[1]} - #{r[2]}\n"
+          end
+        end
+      rescue Exception => e
+        "Error executing query: #{e}"
       end
 
       def update_object(type, id, attribute, value, options = {})
