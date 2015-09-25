@@ -24,6 +24,7 @@ gem "lita-rally"
 **Optional:**
 
 ```config.handlers.rally.api_version``` - API version, default 'v2.0'
+
 ```config.handlers.rally.read_only``` - disable commands that modifies objects
 
 
