@@ -79,6 +79,20 @@ module Lita
       config :password, type: String, required: true
       config :api_version, type: String, default: 'v2.0'
       config :read_only, type: Object, default: false
+      config :action_state_map, type: Hash, default: {
+        'start' => 'Submitted',
+        'pause' => 'Submitted',
+        'backlog' => 'Submitted',
+        'finished' => 'Fixed',
+        'accept' => 'Closed',
+      }
+      config :action_schedule_state_map, type: Hash, default: {
+        'start' => 'In-Progress',
+        'pause' => 'Defined',
+        'finish' => 'Completed',
+        'accept' => 'Accepted',
+        'backlog' => 'Backlog',
+      }
 
       route(/^rally me ([[:alpha:]]+)(\d+)/, :rally_show, command: true, help: {
         'rally me <identifier>' => 'Show me that rally object'
@@ -174,29 +188,9 @@ module Lita
         type = response.matches[0][1].downcase
         id = response.matches[0][2]
 
-        schedule_state =
-          case action
-          when 'start'
-            'In-Progress'
-          when 'pause'
-            'Defined'
-          when 'finish'
-            'Completed'
-          when 'accept'
-            'Accepted'
-          when 'backlog'
-            'Backlog'
-          end
+        schedule_state = config.action_schedule_state_map[action]
 
-        state =
-          case action
-          when 'start','pause','backlog'
-            'Open'
-          when 'finish'
-            'Fixed'
-          when 'accept'
-            'Closed'
-          end
+        state = config.action_state_map[action]
 
         response.reply(update_object(type, id, 'ScheduleState', schedule_state))
 

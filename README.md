@@ -23,9 +23,36 @@ gem "lita-rally"
 
 **Optional:**
 
-```config.handlers.rally.api_version``` - API version, default 'v2.0'
+```config.handlers.rally.api_version``` - API version. **Default:** 'v2.0'
 
-```config.handlers.rally.read_only``` - disable commands that modifies objects
+```config.handlers.rally.read_only``` - [true/false] disable commands
+that modifies objects. **Default:** false
+
+```config.handlers.rally.action_state_map``` - [Hash] a map of actions to the
+corresponding states of the artifact. **Default:**
+
+```ruby
+{
+  'start' => 'Submitted',
+  'pause' => 'Submitted',
+  'backlog' => 'Submitted',
+  'finished' => 'Fixed',
+  'accept' => 'Closed',
+}
+```
+
+```config.handlers.rally.action_schedule_state_map``` - [Hash] a map of actions
+to the corresponding schedule states of the artifact. **Default:**
+
+```ruby
+{
+  'start' => 'In-Progress',
+  'pause' => 'Defined',
+  'finish' => 'Completed',
+  'accept' => 'Accepted',
+  'backlog' => 'Backlog',
+}
+```
 
 
 ## Usage
