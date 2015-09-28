@@ -160,16 +160,16 @@ module Lita
 
       def rally_find_my(response)
         if config.hipchat_token
-          uuid = rally_find_user(hipchat_find_user(response.user.mention_name))
+          email = hipchat_find_user(response.user.mention_name)
 
-          raise "Your email is not found in Rally" unless uuid
+          raise "Your email is not found in Rally" unless email
 
           type = response.matches[0][0]
 
           type = 'story' if type == 'stories'
           type = type[0..-2] if type[-1] == 's'
 
-          response.reply(rally_find_type(type, uuid))
+          response.reply(rally_find_type(type, email))
         else
           response.reply('This is a HipChat only function, please provide '\
                          'hipchat_token to use this function.')
@@ -180,13 +180,13 @@ module Lita
 
       def rally_find_mine(response)
         if config.hipchat_token
-          uuid = rally_find_user(hipchat_find_user(response.user.mention_name))
+          email = hipchat_find_user(response.user.mention_name)
 
-          raise "Your email is not found in Rally" unless uuid
+          raise "Your email is not found in Rally" unless email
 
           response.reply(
             %w{story defect task}.inject("") do |output,type|
-              output += "#{type.capitalize}:\n#{rally_find_type(type, uuid)}"
+              output += "#{type.capitalize}:\n#{rally_find_type(type, email)}"
             end
           )
 
@@ -483,10 +483,10 @@ module Lita
         )
       end
 
-      def rally_find_type(type, uuid)
+      def rally_find_type(type, email)
         rally = get_rally_api
 
-        q = "(Owner.ObjectUUID = \"#{uuid}\")"
+        q = "(Owner.EmailAddress = #{email})"
         query =
           case type
           when 'defect'
@@ -552,20 +552,6 @@ module Lita
         JSON.parse(
           get_hipchat_rest["user/@#{mention_name}"].get
         )['email']
-      end
-
-      def rally_find_user(email)
-        rally = get_rally_api
-
-        query = RallyAPI::RallyQuery.new()
-        query.type = :user
-        query.query_string = "(EmailAddress = #{email})"
-
-        result = rally.find(query)
-
-        return nil if result.count == 0
-
-        result[0].read['ObjectUUID']
       end
 
     end
