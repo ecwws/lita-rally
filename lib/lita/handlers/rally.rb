@@ -7,6 +7,7 @@ module Lita
     class Rally < Handler
 
       RALLY = "https://rally1.rallydev.com/slm/webservice"
+      HIPCHAT = 'https://api.hipchat.com/v2'
 
       @@key_map = {
         'de' => {
