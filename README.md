@@ -54,6 +54,21 @@ to the corresponding schedule states of the artifact. **Default:**
 }
 ```
 
+```config.handlers.rally.action_task_state_map``` - [Hash] a map of actions to
+the corresponding task state of the artifact. **Default:**
+
+```ruby
+{
+  'start' => 'In-Progress',
+  'pause' => 'Defined',
+  'backlog' => 'Defined',
+  'finish' => 'Completed',
+  'accept' => 'Completed',
+}
+```
+
+```config.handlers.rally.hipchat_token``` - [String] Hipchat token.
+**Default:** nil
 
 ## Usage
 
@@ -95,6 +110,24 @@ lita rally query <type> <query_string>
 ```
 
 Execute raw Rally API query with <type> and <query_string>
+
+```
+lita rally mine
+```
+
+**(HipChat Only, require hipchat_tocken config)** Look up all Rally objects
+belongs to me. (Limited to type Defect, Story, Task) Look up involves using
+HipChat to determine user's e-mail. HipChat user's registered e-mail must match
+Rally user registered e-mail.
+
+```
+lita rally my <defect|defects|story|stories|task|tasks>
+```
+
+**(HipChat Only, require hipchat_tocken config)** Look up all Rally objects
+belongs to me of specific type. (Limited to type Defect, Story, Task) Look up
+involves using HipChat to determine user's e-mail. HipChat user's registered
+e-mail must match Rally user registered e-mail.
 
 ```
 lita rally <start|pause|finish|accept|backlog> <FormattedID>

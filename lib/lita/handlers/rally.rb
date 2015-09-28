@@ -83,7 +83,7 @@ module Lita
         'start' => 'Submitted',
         'pause' => 'Submitted',
         'backlog' => 'Submitted',
-        'finished' => 'Fixed',
+        'finish' => 'Fixed',
         'accept' => 'Closed',
       }
       config :action_schedule_state_map, type: Hash, default: {
@@ -93,6 +93,14 @@ module Lita
         'accept' => 'Accepted',
         'backlog' => 'Backlog',
       }
+      config :action_task_state_map, type: Hash, default: {
+        'start' => 'In-Progress',
+        'pause' => 'Defined',
+        'backlog' => 'Defined',
+        'finish' => 'Completed',
+        'accept' => 'Completed',
+      }
+      config :hipchat_token, type: String, default: nil
 
       route(/^rally me ([[:alpha:]]+)(\d+)/, :rally_show, command: true, help: {
         'rally me <identifier>' => 'Show me that rally object'
@@ -117,7 +125,7 @@ module Lita
       route(/^rally (start|pause|finish|accept|backlog) ([[:alpha:]]+)(\d+)/,
         :rally_mark, command: true, help: {
           'rally <start|pause|finish|accept|backlog> <formattedID>' =>
-          'mark issue in-progress'
+          'Move issues between scheduling states'
       })
 
       route(/^rally query (\w+)\s+(.*)$/,
@@ -137,6 +145,57 @@ module Lita
           'rally find defect <created|closed> in last <number> days' =>
             'Find defect objects in date range'
       })
+
+      route( /^rally mine/, :rally_find_mine, command: true, help: {
+          'rally mine' =>
+            '(HipChat Only) Find defects/stories/tasks belongs to me'
+      })
+
+      route( /^rally my (defect|defects|story|stories|task|tasks)/,
+            :rally_find_my, command: true, help: {
+              'rally my <defect|story|task>' =>
+                '(HipChat Only) Find defects/stories/tasks belongs to me'
+      })
+
+      def rally_find_my(response)
+        if config.hipchat_token
+          uuid = rally_find_user(hipchat_find_user(response.user.mention_name))
+
+          raise "Your email is not found in Rally" unless uuid
+
+          type = response.matches[0][0]
+
+          type = 'story' if type == 'stories'
+          type = type[0..-2] if type[-1] == 's'
+
+          response.reply(rally_find_type(type, uuid))
+        else
+          response.reply('This is a HipChat only function, please provide '\
+                         'hipchat_token to use this function.')
+        end
+      rescue Exception => e
+        response.reply("Error occured: #{e}")
+      end
+
+      def rally_find_mine(response)
+        if config.hipchat_token
+          uuid = rally_find_user(hipchat_find_user(response.user.mention_name))
+
+          raise "Your email is not found in Rally" unless uuid
+
+          response.reply(
+            %w{story defect task}.inject("") do |output,type|
+              output += "#{type.capitalize}:\n#{rally_find_type(type, uuid)}"
+            end
+          )
+
+        else
+          response.reply('This is a HipChat only function, please provide '\
+                         'hipchat_token to use this function.')
+        end
+      rescue Exception => e
+        response.reply("Error occured: #{e}")
+      end
 
       def rally_find_defect_back(response)
         field =
@@ -188,11 +247,20 @@ module Lita
         type = response.matches[0][1].downcase
         id = response.matches[0][2]
 
+        raise 'Only defect (DE) story (US) task (TA) are supported' unless
+          %{de us ta}.include?(type)
+
         schedule_state = config.action_schedule_state_map[action]
 
-        state = config.action_state_map[action]
+        state = if type == 'ta'
+                  config.action_task_state_map[action]
+                else
+                  config.action_state_map[action]
+                end
 
-        response.reply(update_object(type, id, 'ScheduleState', schedule_state))
+        response.reply(
+          update_object(type, id, 'ScheduleState', schedule_state)
+        ) if %{de us}.include?(type)
 
         response.reply(update_object(type, id, 'State', state))
 
@@ -200,7 +268,8 @@ module Lita
                       "<br />Marked #{state} by #{response.user.name} on " \
                       "#{Time.now.strftime('%Y-%m-%dT%H:%M:%S%z')}",
                       append: true)
-
+      rescue Exception => e
+        response.reply("Error: #{e}")
       end
 
       def rally_show(response)
@@ -413,20 +482,45 @@ module Lita
         )
       end
 
-      def rally_search(type, term, field)
+      def rally_find_type(type, uuid)
+        rally = get_rally_api
+
+        q = "(Owner.ObjectUUID = \"#{uuid}\")"
+        query =
+          case type
+          when 'defect'
+            "(#{q} AND (ScheduleState != Accepted))"
+          when 'story'
+            "(#{q} AND (ScheduleState != Accepted))"
+          when 'task'
+            "(#{q} AND (State != Completed))"
+          else
+            raise "Not a supported type: #{type}"
+          end
+
+        rally_search(type, query, 'raw', true)
+      rescue Exception => e
+        "Query error #{e}"
+      end
+
+      def rally_search(type, term, field, state = false)
         rally = get_rally_api
 
         query = RallyAPI::RallyQuery.new()
         if %w{defect defects}.include?(type)
           query.type = 'defect'
-        else
+        elsif %w{story stories}.include?(type)
           query.type = 'story'
+        else
+          query.type = 'task'
         end
 
         if field == 'name'
           query.query_string = "(Name contains \"#{term}\")"
-        else
+        elsif field == 'description'
           query.query_string = "(Description contains \"#{term}\")"
+        else
+          query.query_string = term
         end
 
         result = rally.find(query)
@@ -435,8 +529,42 @@ module Lita
 
         result.inject("#{result.count} results total:\n") do |o,r|
           r.read
-          o += "#{r['FormattedID']} - #{r['Name']}\n"
+          o += "#{r['FormattedID']}"
+          o += " [#{r['ScheduleState']}]" if
+            state && %{defect story}.include?(type)
+          o += " [#{r['State']}]" if state && type == 'task'
+          o +=  " - #{r['Name']}"
+          o += "\n"
         end
+      end
+
+      def get_hipchat_rest
+        RestClient::Resource.new(
+          "#{HIPCHAT}/",
+          headers: {
+            Authorization: "Bearer #{config.hipchat_token}"
+          }
+        )
+      end
+
+      def hipchat_find_user(mention_name)
+        JSON.parse(
+          get_hipchat_rest["user/@#{mention_name}"].get
+        )['email']
+      end
+
+      def rally_find_user(email)
+        rally = get_rally_api
+
+        query = RallyAPI::RallyQuery.new()
+        query.type = :user
+        query.query_string = "(EmailAddress = #{email})"
+
+        result = rally.find(query)
+
+        return nil if result.count == 0
+
+        result[0].read['ObjectUUID']
       end
 
     end
