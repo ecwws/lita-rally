@@ -147,39 +147,72 @@ module Lita
             'Find defect objects in date range'
       })
 
-      route( /^rally mine/, :rally_find_mine, command: true, help: {
+      route(/^rally mine/, :rally_find_mine, command: true, help: {
           'rally mine' =>
             '(HipChat Only) Find all defects/stories/tasks belongs to me'
       })
 
-      route( /^rally my (defect|defects|story|stories|task|tasks)/,
+      route(/^rally my (defect|defects|story|stories|task|tasks)/,
             :rally_find_my, command: true, help: {
               'rally my <defect|story|task>' =>
                 '(HipChat Only) Find defects/stories/tasks belongs to me'
       })
 
-      route( /^rally for (.+)$/, :rally_find_mention, command: true, help: {
+      route(/^rally for (.+)$/, :rally_find_mention, command: true, help: {
           'rally for (@)mention' =>
             '(HipChat Only) Find all defects/stories/tasks belongs to @mention'
       })
 
-      route( /^rally (defect|defects|story|stories|task|tasks) for (.+)$/,
+      route(/^rally (defect|defects|story|stories|task|tasks) for (.+)$/,
             :rally_find_mention, command: true, help: {
               'rally <defect|story|task> for (@)mention' =>
                 '(HipChat Only) Find defects/stories/tasks belongs to @mention'
       })
 
-      route( /^rally claim ([[:alpha:]]+)(\d+)/,
+      route(/^rally claim ([[:alpha:]]+)(\d+)/,
             :rally_assign, command: true, help: {
           'rally claim <FormattedID>' =>
             "(HipChat Only) claim an object's ownership"
       })
 
-      route( /^rally assign ([[:alpha:]]+)(\d+) to (.+)$/,
+      route(/^rally assign ([[:alpha:]]+)(\d+) to (.+)$/,
             :rally_assign, command: true, help: {
           'rally claim <FormattedID>' =>
             "(HipChat Only) claim an object's ownership"
       })
+
+      route(/^rally list (backlog|defined|active|completed) (defect|defects|story|stories|task|tasks) in (.+)/,
+            :rally_list_in_project, command: true, help: {
+          'rally list <backlog|defined|active|completed> ' \
+          '<defect|defects|story|stories|task|tasks> in <project>' =>
+            'List defect/story/task in project'
+      })
+
+      def rally_list_in_project(response)
+        state = response.matches[0][0]
+        type = response.matches[0][1]
+        project = response.matches[0][2].capitalize
+
+        type = 'story' if type == 'stories'
+        type = type[0..-2] if !type.nil? && type[-1] == 's'
+
+        case state
+        when 'defined','completed'
+          state.capitalize!
+        when 'backlog'
+          raise 'There is no backlog state for task!' if type == 'task'
+          state.capitalize!
+        when 'active'
+          state = 'In-Progress'
+        end
+
+        field = (type == 'task' ? 'State' : 'ScheduleState')
+
+        term = "((#{field} = \"#{state}\") AND (Project.name = \"#{project}\"))"
+
+        response.reply(rally_search(type, term, field))
+
+      end
 
       def rally_assign(response)
         type = response.matches[0][0].downcase

@@ -107,6 +107,12 @@ lita rally find defects <created|closed> in last <number> days
 Find rally defects created/closed in last few days
 
 ```
+rally list <backlog|defined|active|completed> <defect|story|task> in <project>
+```
+
+List backlog/defined/active/completed defect/story/task in <project>
+
+```
 lita rally query <type> <query_string>
 ```
 
