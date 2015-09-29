@@ -223,7 +223,7 @@ module Lita
 
         user = rally_find_user(hipchat_find_user(mention))
 
-        update_object(type, id, 'owner', user, options = {})
+        response.reply(update_object(type, id, 'owner', user, options = {}))
 
       rescue Exception => e
         response.reply("Error during assignment: #{e}")
