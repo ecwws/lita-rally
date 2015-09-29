@@ -149,7 +149,7 @@ module Lita
 
       route( /^rally mine/, :rally_find_mine, command: true, help: {
           'rally mine' =>
-            '(HipChat Only) Find defects/stories/tasks belongs to me'
+            '(HipChat Only) Find all defects/stories/tasks belongs to me'
       })
 
       route( /^rally my (defect|defects|story|stories|task|tasks)/,
@@ -157,6 +157,45 @@ module Lita
               'rally my <defect|story|task>' =>
                 '(HipChat Only) Find defects/stories/tasks belongs to me'
       })
+
+      route( /^rally @(\S*)$/, :rally_find_mention, command: true, help: {
+          'rally @mention' =>
+            '(HipChat Only) Find all defects/stories/tasks belongs to @mention'
+      })
+
+      route( /^rally @(\S*) (defect|defects|story|stories|task|tasks)/,
+            :rally_find_mention, command: true, help: {
+              'rally @mention <defect|story|task>' =>
+                '(HipChat Only) Find defects/stories/tasks belongs to @mention'
+      })
+
+      def rally_find_mention(response)
+        if config.hipchat_token
+          email = hipchat_find_user(response.matches[0][0])
+
+          raise "Your email is not found in Rally" unless email
+
+          type = response.matches[0][1]
+
+          type = 'story' if type == 'stories'
+          type = type[0..-2] if !type.nil? && type[-1] == 's'
+
+          if type
+            response.reply(rally_find_type(type, email))
+          else
+            response.reply(
+              %w{story defect task}.inject("") do |output,type|
+                output += "#{type.capitalize}:\n#{rally_find_type(type, email)}"
+              end
+            )
+          end
+        else
+          response.reply('This is a HipChat only function, please provide '\
+                         'hipchat_token to use this function.')
+        end
+      rescue Exception => e
+        response.reply("Error occured: #{e}")
+      end
 
       def rally_find_my(response)
         if config.hipchat_token
