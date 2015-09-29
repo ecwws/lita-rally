@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = 'lita-rally'
-  spec.version       = '1.1.0'
+  spec.version       = '1.1.1'
   spec.authors       = ['Richard Li']
   spec.email         = ['evilcat@wisewolfsolutions.com']
   spec.description   = %q{Rally plugin for lita bot}
