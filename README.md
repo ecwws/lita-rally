@@ -110,13 +110,13 @@ Find rally defects created/closed in last few days
 rally list <backlog|defined|active|completed> <defect|story|task> in <project>
 ```
 
-List backlog/defined/active/completed defect/story/task in <project>
+List backlog/defined/active/completed defect/story/task in **project**
 
 ```
 lita rally query <type> <query_string>
 ```
 
-Execute raw Rally API query with <type> and <query_string>
+Execute raw Rally API query with **type** and **query_string**
 
 ```
 lita rally mine
