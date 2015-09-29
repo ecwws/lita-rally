@@ -36,7 +36,7 @@ corresponding states of the artifact. **Default:**
   'start' => 'Submitted',
   'pause' => 'Submitted',
   'backlog' => 'Submitted',
-  'finished' => 'Fixed',
+  'finish' => 'Fixed',
   'accept' => 'Closed',
 }
 ```
@@ -97,7 +97,8 @@ Find object with terms
 lita rally find defects <created|closed> between <date1> and <date2>
 ```
 
-Find rally defects created/closed in certain date range
+Find rally defects created/closed in certain date range, date format can be
+**yyyy-mm-dd** **yy-mm-dd** **yyyy/mm/dd** **yy/mm/dd** **mm/dd**
 
 ```
 lita rally find defects <created|closed> in last <number> days
@@ -144,6 +145,14 @@ lita rally <start|pause|finish|accept|backlog> <FormattedID>
 
 Move object between schedule states: **start** -> **In-Progress**, **pause** ->
 **Defined**, **finish** -> **Completed**, **backlog** -> **Backlog**.
+
+```
+lita rally claim <FormattedID>
+lita rally assign <FormattedID> to [@]mention
+```
+
+**(HipChat Only, require hipchat_token config)** claim a Rally object's
+ownership or assign the object to another user.
 
 ## License
 

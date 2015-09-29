@@ -169,6 +169,33 @@ module Lita
                 '(HipChat Only) Find defects/stories/tasks belongs to @mention'
       })
 
+      route( /^rally claim ([[:alpha:]]+)(\d+)/,
+            :rally_assign, command: true, help: {
+          'rally claim <FormattedID>' =>
+            "(HipChat Only) claim an object's ownership"
+      })
+
+      route( /^rally assign ([[:alpha:]]+)(\d+) to (.+)$/,
+            :rally_assign, command: true, help: {
+          'rally claim <FormattedID>' =>
+            "(HipChat Only) claim an object's ownership"
+      })
+
+      def rally_assign(response)
+        type = response.matches[0][0].downcase
+        id = response.matches[0][1]
+        owner = response.matches[0][2]
+
+        mention = owner.nil? ? response.user.mention_name : owner
+
+        user = rally_find_user(hipchat_find_user(mention))
+
+        update_object(type, id, 'owner', user, options = {})
+
+      rescue Exception => e
+        response.reply("Error during assignment: #{e}")
+      end
+
       def rally_find_mention(response)
         if config.hipchat_token
           p1 = response.matches[0][0]
@@ -181,7 +208,7 @@ module Lita
               [nil, p1]
             end
 
-          email = hipchat_find_user(user[0] == '@' ? user[1..-1] : user)
+          email = hipchat_find_user(user)
 
           raise "Could not find user's email" unless email
 
@@ -595,10 +622,30 @@ module Lita
         )
       end
 
-      def hipchat_find_user(mention_name)
+      def hipchat_find_user(mention)
         JSON.parse(
-          get_hipchat_rest["user/@#{mention_name}"].get
+          get_hipchat_rest[
+            "user/@#{mention[0] == '@' ? mention[1..-1] : mention}"
+          ].get
         )['email']
+      end
+
+      def rally_find_user(email)
+        rally = get_rally_api
+
+        result =
+          rally.find(
+            RallyAPI::RallyQuery.new(
+              {
+                type: 'user',
+                query_string: "(EmailAddress = #{email})"
+              }
+            )
+          )
+
+        return nil if result.count == 0
+
+        result[0]
       end
 
     end
