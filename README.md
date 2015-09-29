@@ -130,6 +130,15 @@ involves using HipChat to determine user's e-mail. HipChat user's registered
 e-mail must match Rally user registered e-mail.
 
 ```
+lita rally @mention
+lita rally @mention <defect|defects|story|stories|task|tasks>
+```
+
+**(HipChat Only, require hipchat_token config)** Similar to ```rally mine```
+and ```rally my ...```, except it'll look up the @mention user instead of user
+executed the command.
+
+```
 lita rally <start|pause|finish|accept|backlog> <FormattedID>
 ```
 
