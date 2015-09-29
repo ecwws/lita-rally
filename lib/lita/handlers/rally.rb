@@ -158,24 +158,32 @@ module Lita
                 '(HipChat Only) Find defects/stories/tasks belongs to me'
       })
 
-      route( /^rally @(\S*)$/, :rally_find_mention, command: true, help: {
-          'rally @mention' =>
+      route( /^rally for (.+)$/, :rally_find_mention, command: true, help: {
+          'rally for (@)mention' =>
             '(HipChat Only) Find all defects/stories/tasks belongs to @mention'
       })
 
-      route( /^rally @(\S*) (defect|defects|story|stories|task|tasks)/,
+      route( /^rally (defect|defects|story|stories|task|tasks) for (.+)$/,
             :rally_find_mention, command: true, help: {
-              'rally @mention <defect|story|task>' =>
+              'rally <defect|story|task> for (@)mention' =>
                 '(HipChat Only) Find defects/stories/tasks belongs to @mention'
       })
 
       def rally_find_mention(response)
         if config.hipchat_token
-          email = hipchat_find_user(response.matches[0][0])
+          p1 = response.matches[0][0]
+          p2 = response.matches[0][1]
 
-          raise "Your email is not found in Rally" unless email
+          type, user =
+            if %w{defect defects story stories task tasks}.include?(p1)
+              [p1, p2]
+            else
+              [nil, p1]
+            end
 
-          type = response.matches[0][1]
+          email = hipchat_find_user(user[0] == '@' ? user[1..-1] : user)
+
+          raise "Could not find user's email" unless email
 
           type = 'story' if type == 'stories'
           type = type[0..-2] if !type.nil? && type[-1] == 's'

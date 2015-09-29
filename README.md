@@ -130,8 +130,8 @@ involves using HipChat to determine user's e-mail. HipChat user's registered
 e-mail must match Rally user registered e-mail.
 
 ```
-lita rally @mention
-lita rally @mention <defect|defects|story|stories|task|tasks>
+lita rally for [@]mention
+lita rally <defect|defects|story|stories|task|tasks> for [@]mention
 ```
 
 **(HipChat Only, require hipchat_token config)** Similar to ```rally mine```
