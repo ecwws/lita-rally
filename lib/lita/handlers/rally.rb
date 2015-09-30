@@ -215,16 +215,32 @@ module Lita
       end
 
       def rally_assign(response)
-        type = response.matches[0][0].downcase
-        id = response.matches[0][1]
-        owner = response.matches[0][2]
+        if config.hipchat_token
+          if config.read_only
+            response.reply('Rally plugin is operating in Read-Only mode, ' \
+                           'ask your chat-ops admin to disable it.')
+            return
+          end
 
-        mention = owner.nil? ? response.user.mention_name : owner
+          type = response.matches[0][0].downcase
+          id = response.matches[0][1]
+          owner = response.matches[0][2]
 
-        user = rally_find_user(hipchat_find_user(mention))
+          mention = owner.nil? ? response.user.mention_name : owner
 
-        response.reply(update_object(type, id, 'owner', user, options = {}))
+          user = rally_find_user(hipchat_find_user(mention))
 
+          response.reply(update_object(type, id, 'owner', user, options = {}))
+
+          update_object(type, id, 'Notes',
+                        "<br />assigned ownership to #{user} by " \
+                        "#{response.user.name} on " \
+                        "#{Time.now.strftime('%Y-%m-%dT%H:%M:%S%z')}",
+                        append: true)
+        else
+          response.reply('This is a HipChat only function, please provide '\
+                         'hipchat_token to use this function.')
+        end
       rescue Exception => e
         response.reply("Error during assignment: #{e}")
       end
