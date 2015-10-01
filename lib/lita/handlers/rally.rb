@@ -177,8 +177,8 @@ module Lita
 
       route(/^rally assign ([[:alpha:]]+)(\d+) to (.+)$/,
             :rally_assign, command: true, help: {
-          'rally claim <FormattedID>' =>
-            "(HipChat Only) claim an object's ownership"
+          'rally assign <FormattedID> to (@)mention' =>
+            "(HipChat Only) assign ownership of object to (@)mention"
       })
 
       route(/^rally list (backlog|defined|active|completed) (defect|defects|story|stories|task|tasks) in (.+)/,
